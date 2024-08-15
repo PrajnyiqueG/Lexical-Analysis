@@ -206,31 +206,68 @@ Token* handleString(FILE *inputFile, int *line, int *column) {
     char buffer[256];  // Buffer to accumulate the number
     int index = 0;
     char c;
-    int startColumn = *column; 
+    int startColumn = *column;
+    char quoteChar = nextChar(inputFile);
+
+    if (quoteChar != '\"' && quoteChar != '\'') {
+        lexError("Expected a string delimiter", *line, *column);
+        return createToken(TOKEN_ERROR, "", *line, *column);
+    }
+
+    (*column)++;
+
     while((c= nextChar(inputFile)) != EOF){
-        if(c == '\"' || c == '\''){
-            if(index < sizeof(buffer)-1){
+        if(c == quoteChar){
+            (*column)++;
+            break;
+        }
+
+        else if(index < sizeof(buffer)-1){
                 buffer[index++] = c;
                 (*column)++;
             }
-            else{
+        else{
                 lexError("String too long", *line, *column);
                 return createToken(TOKEN_ERROR, "", *line, *column);
             }
         }
-        else{
-            retractChar(inputFile, c);
-            break;
+
+        buffer[index] ='\0';
+        if (c != quoteChar) {
+        // If we didn't find the closing quote, it's an error
+        lexError("Unterminated string literal", *line, *column);
+        return createToken(TOKEN_ERROR, "", *line, startColumn);
         }
-
+        return createToken(TOKEN_STRING, buffer, line, column); // Placeholder
     }
+    
+        
 
 
-    return createToken(TOKEN_STRING, buffer, line, column); // Placeholder
-}
-
-Token* handleOperator(FILE *inputFile) {
+Token* handleOperator(FILE *inputFile, int *line, int *column) {
     // Implement logic to read and recognize operators
+    char buffer[256];  // Buffer to accumulate the number
+    int index = 0;
+    char c;
+    int startColumn = *column; 
+    switch(c){
+        case '+':
+        case '-':
+        case '*':
+        case '/':
+        case '=':
+        case '|':
+        case '&':
+        case '!':
+        case '%':
+        case '>':
+        case '<':
+    }
+    char nextCharacter = nextChar(inputFile);
+    (*column)++;
+    
+
+
     return NULL; // Placeholder
 }
 
