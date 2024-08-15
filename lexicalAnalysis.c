@@ -246,7 +246,7 @@ Token* handleString(FILE *inputFile, int *line, int *column) {
 
 Token* handleOperator(FILE *inputFile, int *line, int *column) {
     // Implement logic to read and recognize operators
-    char buffer[256];  // Buffer to accumulate the number
+    char buffer[256];
     int index = 0;
     char c;
     int startColumn = *column; 
@@ -262,18 +262,60 @@ Token* handleOperator(FILE *inputFile, int *line, int *column) {
         case '%':
         case '>':
         case '<':
-    }
+    
     char nextCharacter = nextChar(inputFile);
     (*column)++;
-    
+    if((c=='=' && nextCharacter == '=')||
+    (c=='!' && nextCharacter == '=')||
+    (c=='>' && nextCharacter == '=')||
+    (c=='<' && nextCharacter == '=')||
+    (c=='$' && nextCharacter == '$')||
+    (c=='|' && nextCharacter == '|')){
+        buffer[1] = nextCharacter;
+        buffer[2] = '\0';
+    }
+    else{
+        retractChar(inputFile, c);
+        (*column)--;
+    }
+    break;
+    default:
+        lexError("Unrecognized operator", *line, *column);
+        return createToken(TOKEN_ERROR, "", *line, startColumn);
 
+    }
 
-    return NULL; // Placeholder
+    return createToken(TOKEN_OPERATORS, buffer, line, column); // Placeholder
 }
 
-Token* handleDelimiter(FILE *inputFile) {
+Token* handleDelimiter(FILE *inputFile, int *line, int * column) {
     // Implement logic to read and recognize delimiters
-    return NULL; // Placeholder
+    char buffer[256];
+    int index = 0;
+    char c;
+    int startColumn = *column;
+    char endDelimiter = nextChar(inputFile);
+    if(endDelimiter != ')' && endDelimiter != '}' && endDelimiter != ']'){
+        lexError("Expected an end Delimiter.", *line, *column);
+        return createToken(TOKEN_ERROR, "", line, column);
+    }
+    (*column)++;
+    while(c=nextChar(inputFile)!=EOF){
+        if(c==endDelimiter){
+            break;
+        }
+    }
+    if(index<sizeof(buffer)-1){
+        buffer[index] == c;
+        (*column)++;
+    }
+    else{
+        lexError("Buffer overflow while parsing delimiters", *line, *column);
+        return createToken(TOKEN_ERROR, "", *line, *column);
+    }
+    buffer[index] = '\0';
+
+    return createToken(TOKEN_DELIMITER, buffer, line, column); // Placeholder
 }
 
 // Error handling
@@ -288,11 +330,12 @@ int main(){
         // return 1;
     }
     char c;
-
+    
     while((c = nextChar(inputFile)) != EOF){
         skipWhitespace(inputFile);
         skipComment(inputFile);
-
+        handleIdentifierOrKeyword(inputFile);
+        handleNumber(inputFile, )
         Token * token = nextToken(inputFile);
         if (token) {
             // Do something with the token
