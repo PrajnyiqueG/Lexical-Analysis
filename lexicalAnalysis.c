@@ -327,22 +327,18 @@ int main(){
     FILE *inputFile = fopen("source.txt", "r");
     if (inputFile == NULL){
         perror("Error opening file.");
-        // return 1;
+        return 1;
     }
-    char c;
+    int line = 1;
+    int columm = 1;
     
-    while((c = nextChar(inputFile)) != EOF){
-        skipWhitespace(inputFile);
-        skipComment(inputFile);
-        handleIdentifierOrKeyword(inputFile);
-        handleNumber(inputFile, )
-        Token * token = nextToken(inputFile);
-        if (token) {
+    Token * token;
+    while((token = nextToken(inputFile))!= NULL){
             // Do something with the token
-            printf("Token: Type=%d, Value=%s\n", token->typeOfToken, token->value);
+            printf("Token: Type=%d, Value=%s,Line=%d, Column=%d\n", token->typeOfToken, token->value, token->line, token->column);
             freeToken(token);
         }
-    }
+    
     fclose(inputFile);
     return 0;
-}
+    }
