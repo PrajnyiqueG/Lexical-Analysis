@@ -82,60 +82,8 @@ void skipComment(FILE *inputFile){
     }
 
 }
-Token* nextToken(FILE *inputFile) {
-    // Implement token recognition here
-    // Return tokens based on the current input character
-    skipWhitespace(inputFile);
-    skipComment(inputFile);
-    int c = nextChar(inputFile);
-    if (c == EOF){
-        return createToken(TOKEN_EOF, "", -1, -1);
-    }   
-    if(isalpha(c)){
-        retractChar(inputFile, c);
-        return handleIdentifierOrKeyword(inputFile);
-    }
-    
-
-    return NULL;
-}
-
-// Example functions for token handling
-Token* handleIdentifierOrKeyword(FILE *inputFile) {
-    // Implement logic to read and recognize identifiers or keywords
-    char c;
-    int line = 1;
-    char tempStorage[256];
-    int index =0;
-    int column = 0;
-    while((c=nextChar(inputFile)) != EOF){
-        if(isalnum(c) || c == '_'){
-            if(index < sizeof(tempStorage)+1){
-                tempStorage[index++] = c;
-                column++;
-            }
-            else {
-                // Buffer overflow handling
-                lexError("Identifier too long", line, column);
-                return createToken(TOKEN_ERROR, "", line, column);
-            }
-        }
-        else{
-            retractChar(inputFile, c);
-            break;
-        }
-    } // Placeholder
-    tempStorage[index] = '\0'; // Null-terminate the buffer
-
-    // Check if the identifier is a keyword
-    TokenType type = identifyKeyword(tempStorage);
-    if (type != TOKEN_ERROR) {
-        return createToken(type, tempStorage, line, column);
-    }
-
-    // If not a keyword, it is an identifier
-    return createToken(TOKEN_IDENTIFIER, tempStorage, line, column);
-
+void lexError(const char *message, int *line, int *column) {
+    fprintf(stderr, "Lexical error at line %d, column %d: %s\n", *line, *column, message);
 }
 TokenType identifyKeyword(const char *str) {
     if(strcmp(str, "if")==0){return TOKEN_KEYWORD;}
@@ -159,6 +107,49 @@ TokenType identifyKeyword(const char *str) {
     if(strcmp(str, "const")==0){return TOKEN_KEYWORD;}
     return TOKEN_ERROR;
 }
+bool isOperator(char c){
+    return (c=='+'||c == '-' || c == '*' || c == '/' || c == '=' ||
+        c == '|' || c == '&' || c == '!' || c == '%' || c == '>' || c == '<');
+}
+bool isDelimiter(char c){
+    return (c == '(' || c == ')' || c == '{' || c == '}' || c == '[' || c == ']' || c == ';' || c == ',');
+}
+// Example functions for token handling
+Token* handleIdentifierOrKeyword(FILE *inputFile, int *line, int *column) {
+    // Implement logic to read and recognize identifiers or keywords
+    char c;
+    char tempStorage[256];
+    int index =0;
+    while((c=nextChar(inputFile)) != EOF){
+        if(isalnum(c) || c == '_'){
+            if(index < sizeof(tempStorage)+1){
+                tempStorage[index++] = c;
+                (*column)++;
+            }
+            else {
+                // Buffer overflow handling
+                lexError("Identifier too long", line, *column);
+                return createToken(TOKEN_ERROR, "", *line, *column);
+            }
+        }
+        else{
+            retractChar(inputFile, c);
+            break;
+        }
+    } // Placeholder
+    tempStorage[index] = '\0'; // Null-terminate the buffer
+
+    // Check if the identifier is a keyword
+    TokenType type = identifyKeyword(tempStorage);
+    if (type != TOKEN_ERROR) {
+        return createToken(type, tempStorage, *line, *column);
+    }
+
+    // If not a keyword, it is an identifier
+    return createToken(TOKEN_IDENTIFIER, tempStorage, *line, *column);
+
+}
+
 
 Token* handleNumber(FILE *inputFile, int *line, int *column) {
     // Implement logic to read and recognize numbers
@@ -197,7 +188,7 @@ Token* handleNumber(FILE *inputFile, int *line, int *column) {
     }
     buffer[index] ='\0';
 
-    return createToken(TOKEN_NUMBER, buffer, line, column);
+    return createToken(TOKEN_NUMBER, buffer, *line, *column);
 // Placeholder
 }
 
@@ -238,7 +229,7 @@ Token* handleString(FILE *inputFile, int *line, int *column) {
         lexError("Unterminated string literal", *line, *column);
         return createToken(TOKEN_ERROR, "", *line, startColumn);
         }
-        return createToken(TOKEN_STRING, buffer, line, column); // Placeholder
+        return createToken(TOKEN_STRING, buffer, *line, *column); // Placeholder
     }
     
         
@@ -248,7 +239,7 @@ Token* handleOperator(FILE *inputFile, int *line, int *column) {
     // Implement logic to read and recognize operators
     char buffer[256];
     int index = 0;
-    char c;
+    char c= nextChar(inputFile);
     int startColumn = *column; 
     switch(c){
         case '+':
@@ -261,16 +252,17 @@ Token* handleOperator(FILE *inputFile, int *line, int *column) {
         case '!':
         case '%':
         case '>':
-        case '<':
+        case '<':{
     
     char nextCharacter = nextChar(inputFile);
     (*column)++;
-    if((c=='=' && nextCharacter == '=')||
+    if((c == '=' && nextCharacter == '=')||
     (c=='!' && nextCharacter == '=')||
     (c=='>' && nextCharacter == '=')||
     (c=='<' && nextCharacter == '=')||
     (c=='$' && nextCharacter == '$')||
     (c=='|' && nextCharacter == '|')){
+        buffer[0] = c;
         buffer[1] = nextCharacter;
         buffer[2] = '\0';
     }
@@ -279,13 +271,14 @@ Token* handleOperator(FILE *inputFile, int *line, int *column) {
         (*column)--;
     }
     break;
+        }
     default:
         lexError("Unrecognized operator", *line, *column);
         return createToken(TOKEN_ERROR, "", *line, startColumn);
 
     }
 
-    return createToken(TOKEN_OPERATORS, buffer, line, column); // Placeholder
+    return createToken(TOKEN_OPERATORS, buffer, *line, startColumn); // Placeholder
 }
 
 Token* handleDelimiter(FILE *inputFile, int *line, int * column) {
@@ -297,16 +290,16 @@ Token* handleDelimiter(FILE *inputFile, int *line, int * column) {
     char endDelimiter = nextChar(inputFile);
     if(endDelimiter != ')' && endDelimiter != '}' && endDelimiter != ']'){
         lexError("Expected an end Delimiter.", *line, *column);
-        return createToken(TOKEN_ERROR, "", line, column);
+        return createToken(TOKEN_ERROR, "", *line, *column);
     }
     (*column)++;
-    while(c=nextChar(inputFile)!=EOF){
+    while((c=nextChar(inputFile))!=EOF){
         if(c==endDelimiter){
             break;
         }
     }
     if(index<sizeof(buffer)-1){
-        buffer[index] == c;
+        buffer[index] = c;
         (*column)++;
     }
     else{
@@ -315,13 +308,47 @@ Token* handleDelimiter(FILE *inputFile, int *line, int * column) {
     }
     buffer[index] = '\0';
 
-    return createToken(TOKEN_DELIMITER, buffer, line, column); // Placeholder
+    return createToken(TOKEN_DELIMITER, buffer, *line, *column); // Placeholder
 }
 
 // Error handling
-void lexError(const char *message, int line, int column) {
-    fprintf(stderr, "Lexical error at line %d, column %d: %s\n", line, column, message);
+
+Token* nextToken(FILE *inputFile, int *line, int *column) {
+    // Implement token recognition here
+    // Return tokens based on the current input character
+    skipWhitespace(inputFile);
+    skipComment(inputFile);
+    char c;
+    if ((c=nextChar(inputFile)) == EOF){
+        return createToken(TOKEN_EOF, "", -1, -1);
+    }   
+    if(isalpha(c)){
+        retractChar(inputFile, c);
+        return handleIdentifierOrKeyword(inputFile, line, column);
+    }
+    else if (isdigit(c)) {
+        retractChar(inputFile, c);
+        return handleNumber(inputFile, line, column);
+    }
+    else if (c == '\"' || c == '\'') {
+        return handleString(inputFile, line, column);
+    }
+    else if (isOperator(c)) {
+        retractChar(inputFile, c);
+        return handleOperator(inputFile, line, column);
+    }
+    else if (isDelimiter(c)) {
+        retractChar(inputFile, c);
+        return handleDelimiter(inputFile, line, column);
+    }
+    else{
+        lexError("Unrecognized character", *line, *column);
+        return createToken(TOKEN_ERROR, "", *line, *column);
+    }
+
+    
 }
+
 
 int main(){
     FILE *inputFile = fopen("source.txt", "r");
@@ -330,10 +357,10 @@ int main(){
         return 1;
     }
     int line = 1;
-    int columm = 1;
-    
+    int column = 1;
+
     Token * token;
-    while((token = nextToken(inputFile))!= NULL){
+    while((token = nextToken(inputFile, &line, &column))!= NULL){
             // Do something with the token
             printf("Token: Type=%d, Value=%s,Line=%d, Column=%d\n", token->typeOfToken, token->value, token->line, token->column);
             freeToken(token);
